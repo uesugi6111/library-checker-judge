@@ -20,6 +20,13 @@ jobs:
       with:
         workload_identity_provider: projects/190778459730/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
         service_account: cloud-run-deployer@library-checker-project.iam.gserviceaccount.com
+        token_format: access_token
+    
+    - uses: docker/login-action@v1
+      with:
+        registry: asia.gcr.io
+        username: oauth2accesstoken
+        password: ${{ steps.auth.outputs.access_token }}
 
     - id: gen-protoc
       name: gen protoc
