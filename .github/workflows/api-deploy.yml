@@ -31,4 +31,4 @@ jobs:
 
     - id: push-docker
       name: push-docker
-      run: docker push asia.gcr.io/library-checker-project/judge-api
+      run: docker push asia.gcr.io/library-checker-project/judge-api-test
