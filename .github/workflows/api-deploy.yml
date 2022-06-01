@@ -24,3 +24,11 @@ jobs:
     - id: gen-protoc
       name: gen protoc
       run: ./api/gen_protoc.sh
+
+    - id: build-docker
+      name: build-docker
+      run: docker build -t asia.gcr.io/library-checker-project/judge-api-test api
+
+    - id: push-docker
+      name: push-docker
+      run: docker push asia.gcr.io/library-checker-project/judge-api
