@@ -29,13 +29,29 @@ jobs:
         password: ${{ steps.auth.outputs.access_token }}
 
     - id: gen-protoc
-      name: gen protoc
+      name: Generate protoc
       run: ./api/gen_protoc.sh
 
     - id: build-docker
-      name: build-docker
+      name: Build docker image
       run: docker build -t asia.gcr.io/library-checker-project/judge-api-test api
 
     - id: push-docker
-      name: push-docker
+      name: Push docker image
       run: docker push asia.gcr.io/library-checker-project/judge-api-test
+
+    # TODO: migrate to google-github-actions/deploy-cloudrun@v0
+    - id: setup-cloud-sdk
+      name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0
+
+    - id: deploy-cloud-run
+      name: Deploy to Cloud Run
+      run: >
+        gcloud run deploy
+        judge-api-test
+        --image=asia.gcr.io/library-checker-project/judge-api-test
+        --platform=managed
+        --region=asia-northeast1
+        --add-cloudsql-instances=library-checker-sql
+        --max-instances=10
