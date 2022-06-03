@@ -7,13 +7,13 @@ on:
       - test/apitest
 
 jobs:
-  api-deploy:
+  api-test:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v3
 
-    - id: run docker compose
+    - id: run-docker-compose
       name: Run docker compose
       run: docker compose up -d --build --wait
 
