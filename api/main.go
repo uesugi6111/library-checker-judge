@@ -81,12 +81,12 @@ func NewGRPCServer(db *gorm.DB, authTokenManager AuthTokenManager, langsTomlPath
 	return s
 }
 
-func getSecureString(secureKey, rawValue string) string {
-	if rawValue != "" {
-		return rawValue
-	}
+func getSecureString(secureKey, defaultValue string) string {
 	if secureKey == "" {
-		log.Fatal("secure key is empty")
+		if defaultValue == "" {
+			log.Fatal("both secureKey and defaultValue is empty")
+		}
+		return defaultValue
 	}
 
 	// Create the client.
