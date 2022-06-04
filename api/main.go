@@ -101,7 +101,7 @@ func main() {
 
 	if *isGRPCWeb {
 		log.Print("launch gRPCWeb server port=", port)
-		wrappedGrpc := grpcweb.WrapServer(s, grpcweb.WithOriginFunc(func(origin string) bool { return true }), grpcweb.WithCorsForRegisteredEndpointsOnly(false))
+		wrappedGrpc := grpcweb.WrapServer(s, grpcweb.WithOriginFunc(func(origin string) bool { return true }))
 		http.HandleFunc("/health", func(resp http.ResponseWriter, req *http.Request) {
 			io.WriteString(resp, "SERVING")
 		})
@@ -109,8 +109,8 @@ func main() {
 			log.Print("Request: ", *req)
 			if wrappedGrpc.IsAcceptableGrpcCorsRequest(req) || wrappedGrpc.IsGrpcWebRequest(req) {
 				// TODO: remove these headers
-				resp.Header().Set("Access-Control-Allow-Origin", "*")
-				resp.Header().Set("Access-Control-Allow-Headers", "Content-Type, x-user-agent, x-grpc-web, authorization")
+				//resp.Header().Set("Access-Control-Allow-Origin", "*")
+				//resp.Header().Set("Access-Control-Allow-Headers", "Content-Type, x-user-agent, x-grpc-web, authorization")
 				wrappedGrpc.ServeHTTP(resp, req)
 				return
 			}
