@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -20,6 +21,9 @@ import (
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	_ "github.com/lib/pq"
 	"gorm.io/gorm"
+
+	secretmanager "cloud.google.com/go/secretmanager/apiv1"
+	secretmanagerpb "google.golang.org/genproto/googleapis/cloud/secretmanager/v1"
 )
 
 func getEnv(key, defaultValue string) string {
@@ -77,24 +81,47 @@ func NewGRPCServer(db *gorm.DB, langsTomlPath string) *grpc.Server {
 }
 
 func main() {
+	//log.Println(accessSecretVersion("projects/190778459730/secrets/TEST_SECRET/versions/latest"))
+	//return
 	langsTomlPath := flag.String("langs", "../langs/langs.toml", "toml path of langs.toml")
 	isGRPCWeb := flag.Bool("grpcweb", false, "launch gRPCWeb server")
-	port := getEnv("PORT", "50051")
-	portArg := flag.Int("port", -1, "port number")
 
+	pgHost := flag.String("pghost", "127.0.0.1", "gcloud secret of postgre host")
+	pgPass := flag.String("pgpass", "passwd", "gcloud secret of postgre password")
+	pgHostSecret := flag.String("pghost-secret", "", "gcloud secret of postgre host")
+	pgPassSecret := flag.String("pgpass-secret", "", "gcloud secret of postgre password")
+
+	portArg := flag.Int("port", -1, "port number")
+	flag.Parse()
+
+	port := getEnv("PORT", "50051")
 	if *portArg != -1 {
 		port = strconv.Itoa(*portArg)
 	}
 
-	flag.Parse()
+	if *pgHostSecret != "" {
+		value, err := accessSecretVersion(*pgHostSecret)
+		if err != nil {
+			log.Fatal(err)
+		}
+		*pgHost = value
+	}
+
+	if *pgPassSecret != "" {
+		value, err := accessSecretVersion(*pgPassSecret)
+		if err != nil {
+			log.Fatal(err)
+		}
+		*pgPass = value
+	}
 
 	// connect db
 	db := dbConnect(
-		getEnv("POSTGRE_HOST", "127.0.0.1"),
+		*pgHost,
 		getEnv("POSTGRE_PORT", "5432"),
 		"librarychecker",
 		getEnv("POSTGRE_USER", "postgres"),
-		getEnv("POSTGRE_PASS", "passwd"),
+		*pgPass,
 		getEnv("API_DB_LOG", "") != "")
 
 	s := NewGRPCServer(db, *langsTomlPath)
@@ -121,4 +148,27 @@ func main() {
 		}
 		s.Serve(listen)
 	}
+}
+
+func accessSecretVersion(name string) (string, error) {
+	// Create the client.
+	ctx := context.Background()
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to create secretmanager client: %v", err)
+	}
+	defer client.Close()
+
+	// Build the request.
+	req := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: name,
+	}
+
+	// Call the API.
+	result, err := client.AccessSecretVersion(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to access secret version: %v", err)
+	}
+
+	return string(result.Payload.Data), nil
 }
