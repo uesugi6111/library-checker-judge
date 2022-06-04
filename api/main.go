@@ -106,6 +106,7 @@ func main() {
 			io.WriteString(resp, "SERVING")
 		})
 		http.ListenAndServe(":"+port, http.HandlerFunc(func(resp http.ResponseWriter, req *http.Request) {
+			log.Print("Request: ", *req)
 			if wrappedGrpc.IsAcceptableGrpcCorsRequest(req) || wrappedGrpc.IsGrpcWebRequest(req) {
 				// TODO: remove these headers
 				resp.Header().Set("Access-Control-Allow-Origin", "*")
@@ -113,7 +114,7 @@ func main() {
 				wrappedGrpc.ServeHTTP(resp, req)
 				return
 			}
-			log.Print(*req)
+			log.Print("Transport?", *req)
 			http.DefaultServeMux.ServeHTTP(resp, req)
 		}))
 	} else {
