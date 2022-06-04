@@ -28,14 +28,13 @@ services:
   api:
     build:
       dockerfile: Dockerfile.API
-    command: -pghost=db
+    command: -pghost=db -hmackey=dummy_secret
     ports:
       - 50051:50051
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - HMAC_SECRET=dummy_secret
       - API_DB_LOG=true
     healthcheck:
         test: grpc_health_probe -addr localhost:50051
@@ -46,14 +45,13 @@ services:
   api-grpcweb:
     build:
       dockerfile: Dockerfile.API
-    command: -grpcweb -pghost=db
+    command: -grpcweb -pghost=db -hmackey=dummy_secret
     ports:
       - 58080:50051
     depends_on:
       db:
         condition: service_healthy
     environment:
-      - HMAC_SECRET=dummy_secret
       - API_DB_LOG=true
     healthcheck:
         test: wget -q -O - localhost:50051/health || exit 1

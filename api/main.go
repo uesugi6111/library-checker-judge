@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"net"
@@ -65,19 +64,51 @@ func toProtoSubmission(submission *Submission) (*pb.SubmissionOverview, error) {
 
 type server struct {
 	pb.UnimplementedLibraryCheckerServiceServer
-	db    *gorm.DB
-	langs []*pb.Lang
+	db               *gorm.DB
+	langs            []*pb.Lang
+	authTokenManager AuthTokenManager
 }
 
-func NewGRPCServer(db *gorm.DB, langsTomlPath string) *grpc.Server {
+func NewGRPCServer(db *gorm.DB, authTokenManager AuthTokenManager, langsTomlPath string) *grpc.Server {
 	// launch gRPC server
 	s := grpc.NewServer(
-		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authnFunc)))
+		grpc.UnaryInterceptor(grpc_auth.UnaryServerInterceptor(authTokenManager.authnFunc)))
 	pb.RegisterLibraryCheckerServiceServer(s, &server{
-		db:    db,
-		langs: ReadLangs(langsTomlPath),
+		db:               db,
+		langs:            ReadLangs(langsTomlPath),
+		authTokenManager: authTokenManager,
 	})
 	return s
+}
+
+func getSecureString(secureKey, rawValue string) string {
+	if rawValue != "" {
+		return rawValue
+	}
+	if secureKey == "" {
+		log.Fatal("secure key is empty")
+	}
+
+	// Create the client.
+	ctx := context.Background()
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to create secretmanager client: %v", err)
+	}
+	defer client.Close()
+
+	// Build the request.
+	req := &secretmanagerpb.AccessSecretVersionRequest{
+		Name: secureKey,
+	}
+
+	// Call the API.
+	result, err := client.AccessSecretVersion(ctx, req)
+	if err != nil {
+		log.Fatalf("failed to access secret version: %v", err)
+	}
+
+	return string(result.Payload.Data)
 }
 
 func main() {
@@ -86,10 +117,13 @@ func main() {
 	langsTomlPath := flag.String("langs", "../langs/langs.toml", "toml path of langs.toml")
 	isGRPCWeb := flag.Bool("grpcweb", false, "launch gRPCWeb server")
 
-	pgHost := flag.String("pghost", "127.0.0.1", "gcloud secret of postgre host")
-	pgPass := flag.String("pgpass", "passwd", "gcloud secret of postgre password")
+	pgHost := flag.String("pghost", "127.0.0.1", "postgre host")
 	pgHostSecret := flag.String("pghost-secret", "", "gcloud secret of postgre host")
+	pgPass := flag.String("pgpass", "passwd", "postgre password")
 	pgPassSecret := flag.String("pgpass-secret", "", "gcloud secret of postgre password")
+
+	hmacKey := flag.String("hmackey", "", "hmac key")
+	hmacKeySecret := flag.String("hmackey-secret", "", "gcloud secret of hmac key")
 
 	portArg := flag.Int("port", -1, "port number")
 	flag.Parse()
@@ -99,32 +133,16 @@ func main() {
 		port = strconv.Itoa(*portArg)
 	}
 
-	if *pgHostSecret != "" {
-		value, err := accessSecretVersion(*pgHostSecret)
-		if err != nil {
-			log.Fatal(err)
-		}
-		*pgHost = value
-	}
-
-	if *pgPassSecret != "" {
-		value, err := accessSecretVersion(*pgPassSecret)
-		if err != nil {
-			log.Fatal(err)
-		}
-		*pgPass = value
-	}
-
 	// connect db
 	db := dbConnect(
-		*pgHost,
+		getSecureString(*pgHostSecret, *pgHost),
 		getEnv("POSTGRE_PORT", "5432"),
 		"librarychecker",
 		getEnv("POSTGRE_USER", "postgres"),
-		*pgPass,
+		getSecureString(*pgPassSecret, *pgPass),
 		getEnv("API_DB_LOG", "") != "")
-
-	s := NewGRPCServer(db, *langsTomlPath)
+	authTokenManager := NewAuthTokenManager(getSecureString(*hmacKeySecret, *hmacKey))
+	s := NewGRPCServer(db, authTokenManager, *langsTomlPath)
 
 	if *isGRPCWeb {
 		log.Print("launch gRPCWeb server port=", port)
@@ -148,27 +166,4 @@ func main() {
 		}
 		s.Serve(listen)
 	}
-}
-
-func accessSecretVersion(name string) (string, error) {
-	// Create the client.
-	ctx := context.Background()
-	client, err := secretmanager.NewClient(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to create secretmanager client: %v", err)
-	}
-	defer client.Close()
-
-	// Build the request.
-	req := &secretmanagerpb.AccessSecretVersionRequest{
-		Name: name,
-	}
-
-	// Call the API.
-	result, err := client.AccessSecretVersion(ctx, req)
-	if err != nil {
-		return "", fmt.Errorf("failed to access secret version: %v", err)
-	}
-
-	return string(result.Payload.Data), nil
 }
