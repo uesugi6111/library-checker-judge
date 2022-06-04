@@ -71,6 +71,7 @@ jobs:
         --platform=managed
         --region=asia-northeast1
         --add-cloudsql-instances=library-checker-sql
+        --args=-grpcweb
         --set-env-vars=POSTGRE_HOST="$POSTGRE_HOST",POSTGRE_PASS="$POSTGRE_PASS",HMAC_SECRET="$HMAC_SECRET",MODE=gRPCWeb
         --max-instances=10
       env:
