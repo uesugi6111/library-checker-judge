@@ -113,6 +113,7 @@ func main() {
 				wrappedGrpc.ServeHTTP(resp, req)
 				return
 			}
+			log.Print(*req)
 			http.DefaultServeMux.ServeHTTP(resp, req)
 		}))
 	} else {

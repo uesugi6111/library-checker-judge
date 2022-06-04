@@ -4,6 +4,7 @@ on:
   push:
     branches: 
       - master
+      - test/api
 
 jobs:
   api-deploy:
@@ -34,11 +35,11 @@ jobs:
 
     - id: build-docker
       name: Build docker image
-      run: docker build -t asia.gcr.io/library-checker-project/judge-api -f Dockerfile.API .
+      run: docker build -t asia.gcr.io/library-checker-project/judge-api-test -f Dockerfile.API .
 
     - id: push-docker
       name: Push docker image
-      run: docker push asia.gcr.io/library-checker-project/judge-api
+      run: docker push asia.gcr.io/library-checker-project/judge-api-test
 
     # TODO: migrate to google-github-actions/deploy-cloudrun@v0
     - id: setup-cloud-sdk
@@ -49,7 +50,7 @@ jobs:
       name: Deploy API to Cloud Run
       run: >
         gcloud run deploy
-        judge-api-master
+        judge-api-test
         --image=asia.gcr.io/library-checker-project/judge-api
         --platform=managed
         --region=asia-northeast1
@@ -65,7 +66,7 @@ jobs:
       name: Deploy API(gRPC) to Cloud Run
       run: >
         gcloud run deploy
-        judge-grpcweb-api-master
+        judge-grpcweb-api-test
         --image=asia.gcr.io/library-checker-project/judge-api
         --platform=managed
         --region=asia-northeast1
