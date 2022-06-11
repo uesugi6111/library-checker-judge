@@ -1,0 +1,23 @@
+name: Judge-Test
+
+on:
+  push:
+    branches:
+      - test/ci
+
+jobs:
+  api-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - id: gen-docker
+      name: Generate docker images
+      run: ./build.sh
+      working-directory: ./langs
+
+    - id: run-judge-test
+      name: Run judge test
+      run: go test .
+      working-directory: ./judge
